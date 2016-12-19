@@ -1,0 +1,339 @@
+\appendix
+
+\lstset{language=C++,
+	basicstyle=\ttfamily\footnotesize,
+	keywordstyle=\color{blue}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	commentstyle=\color{green}\ttfamily,
+	numbers=left,
+	breaklines=true,
+	tabsize=1,
+	commentstyle=\color{magenta},
+	morecomment=[l][\color{magenta}]{\#}
+}
+
+
+\section{Código fuente: Problema 1} \label{App:AppendixA}
+
+\begin{frame}
+
+\begin{lstlisting}
+size_t dijkstra(size_t origen, size_t destino, adyacencias_t& adyacencias, std::list<size_t>& itenerario) {
+
+    std::priority_queue< Tupla > cola;
+
+    std::vector<size_t> distancia(ciudades_.size(), INFINITO);
+    std::vector<size_t> padre(ciudades_.size(), INFINITO);
+    std::vector<size_t> vuelo(ciudades_.size(), INFINITO);
+
+    distancia[origen] = 0;
+    cola.push(Tupla(origen, 0));
+
+    while (!cola.empty()) {
+        Tupla u =cola.top(); cola.pop();
+        for(auto& v: adyacencias[u.first]) {
+            if (distancia[v.des_] > v.fin_) {
+                if ((distancia[u.first] == 0) || ((int)distancia[u.first] <= (int)(v.ini_ - 2))) {
+                    distancia[v.des_] = v.fin_;
+                    padre[v.des_] = u.first;
+                    vuelo[v.des_] = v.id_;
+                    cola.push(Tupla(v.des_, distancia[v.des_]));
+                }
+            }
+        }
+    }
+
+    if (distancia[destino] != INFINITO) {
+        size_t ciudad = padre[destino];
+        itenerario.push_front(vuelo[destino]);
+        while (ciudad != origen && ciudad != INFINITO) {
+            itenerario.push_front(vuelo[ciudad]);
+            ciudad = padre[ciudad];
+        }
+        // Si la ultima ciudad no es el origen, entonces no hay itinerario.
+        if (ciudad == INFINITO) {
+            itenerario.clear();
+            return INFINITO;
+        }
+    }
+    return distancia[destino];
+}
+
+\end{lstlisting}
+\end{frame}
+
+\newpage
+\section{Código fuente: Problema 2} \label{App:AppendixB}
+
+\begin{frame}
+
+\begin{lstlisting}
+class Tablero {
+	/// Casillas
+	int n_;
+	/// Cantidad de caballos
+	int k_;
+	/// Casilla (f, c) elegida como destino final
+	int f_;
+	int c_;
+	/// Cantidad de movimientos totales necesarios para llevar a todos los caballos a la casilla (f, c)
+	int m_;
+    
+	typedef pair<int, int> coord_t;
+	typedef vector<vector<int> > matriz_t;
+	vector<coord_t> caballos_;
+
+	inline bool esValido(const coord_t& c, int fila, int col) const {
+		return ((c.first+fila <= n_) && (c.first+fila > 0) && (c.second+col <= n_) && (c.second+col > 0));
+	}
+
+	inline coord_t sumar(const coord_t& c1, const coord_t& c2) const {
+		return coord_t(c1.first + c2.first,  c1.second + c2.second);
+	}
+
+	void dameAdyacentes(const coord_t& c, list<coord_t>& adyacentes) const {
+		// movimiento de caballo arriba derecha
+		if (esValido(c, 1, 2))
+			adyacentes.push_back(sumar(c, coord_t(1, 2)));
+		// movimiento caballo arriba izquierda
+		if (esValido(c, -1, 2))
+			adyacentes.push_back(sumar(c, coord_t(-1, 2)));
+		// movimiento de caballo derecha abajo
+		if (esValido(c, 2, -1))
+			adyacentes.push_back(sumar(c, coord_t(2, -1)));
+		// movimiento caballo derecha arriba
+		if (esValido(c, 2, 1))
+			adyacentes.push_back(sumar(c, coord_t(2, 1)));
+		// movimiento caballo abajo derecha
+		if (esValido(c, 1, -2))
+			adyacentes.push_back(sumar(c, coord_t(1, -2)));
+		// movimiento caballo abajo izquierda
+		if (esValido(c, -1, -2))
+			adyacentes.push_back(sumar(c, coord_t(-1, -2)));
+		// movimiento caballo izquierda arriba
+		if (esValido(c, -2, 1))
+			adyacentes.push_back(sumar(c, coord_t(-2, 1)));
+		// movimiento caballo izquierda abajo
+		if (esValido(c, -2, -1))
+			adyacentes.push_back(sumar(c, coord_t(-2, -1)));
+	}
+
+	void bfs(coord_t origen, matriz_t &m){
+		queue<coord_t> cola;
+
+		vector<bool> aux(n_, false);
+		vector<vector<bool > > visitados(n_, aux);
+		cola.push(origen);
+		visitados[origen.first-1][origen.second-1]  = true;
+		
+		while(!cola.empty()){
+			coord_t cab = cola.front(); cola.pop();
+
+			list<coord_t> adyacentes;
+			dameAdyacentes(cab, adyacentes);
+
+			for(auto &v: adyacentes){
+				if (visitados[v.first-1][v.second-1] == false){
+					visitados[v.first-1][v.second-1] = true;
+					m[v.first-1][v.second-1] = m[cab.first-1][cab.second-1] + 1;
+
+					cola.push(v);
+				}
+			}
+		}
+	}
+
+
+public:
+	Tablero(): n_(0), k_(0), f_(0), c_(0), m_(numeric_limits<int>::max()) {}
+
+	void resolver(){
+		// Para acumular la cantidad de movimientos
+		matriz_t acumMovimientos(n_, vector<int>(n_, 0));
+		// Para contar si cada caballo pas\'o por cada posici\'on (tienen que estar los k).
+		matriz_t cantidad(n_, vector<int>(n_, 0));
+
+		// Ejecuto k bfs (para cada caballo)
+		for(int cab = 0; cab < k_; ++cab) {
+			matriz_t movimientos(n_, vector<int>(n_, 0));
+
+			bfs(caballos_[cab], movimientos);
+
+			// Una vez que termino el BFS, acumulo los movimientos.
+			for (int i = 0; i < n_; ++i) {
+				for (int j = 0; j < n_; ++j) {
+					acumMovimientos[i][j] += movimientos[i][j];
+					// Ahora verifico que el caballo haya estado en esta posici\'on
+					if (movimientos[i][j] > 0)
+						++cantidad[i][j];
+					else {
+						if ( (caballos_[cab].first-1 == i) && (caballos_[cab].second-1 == j))
+							++cantidad[i][j];
+					}
+				}
+			}
+		}
+
+		// Busco la casilla que tenga la m\'inima cantidad de movimientos y todos los caballos lleguen a esa casilla.
+		m_ = numeric_limits<int>::max();
+		for (int i = 0; i < n_; ++i) {
+			for (int j = 0; j < n_; ++j) {
+				if (cantidad[i][j] == k_) {
+					if (acumMovimientos[i][j] < m_) {
+						m_ = acumMovimientos[i][j];
+						f_ = i+1;
+						c_ = j+1;
+					}
+				}
+			}
+		}
+
+	}
+
+	void clear() {
+		 f_ = 0;
+		 c_ = 0;
+		 m_ = numeric_limits<int>::max();
+	}
+
+	int size_n() const {
+		return n_;
+	}
+
+	int size_k() const {
+		return k_;
+	}
+
+};
+\end{lstlisting}
+\end{frame}
+
+\newpage
+\section{Código fuente: Problema 3} \label{App:AppendixC}
+
+\begin{frame}
+
+\begin{lstlisting}
+class Nodo{
+public:
+    int numero, distancia;
+    bool visitado, en_anillo;
+    Nodo * padre;
+    vector <pair <Nodo*, int> > adyacentes;
+    vector <int> arista_en_AGM;
+
+    Nodo(int numero, int N): numero(numero){
+        padre = NULL;
+        distancia = numeric_limits<int>::max();
+        visitado = false;
+        en_anillo = false;
+        arista_en_AGM.resize(N+1);
+    }
+
+    void agregarAdyacente(Nodo* adyacente, int costo) {
+        adyacentes.push_back(make_pair(adyacente, costo));
+    }
+};
+
+
+struct Comp {
+    bool operator()(const Nodo* s1, const Nodo* s2) {
+        return (s1->distancia > s2->distancia);
+    }
+};
+
+class LCdA{
+public:
+	int N, M, C;
+	vector<Nodo> nodos;
+    vector<pair < int , pair <Nodo*, Nodo* > > > aristas ;
+    vector<pair<Nodo*, Nodo*> > anillo;
+    vector<pair<Nodo*, Nodo*> > resto;
+
+	LCdA():C(0){}
+	int buscar_AGM() {
+    
+        // Si M < N no puede ser conexo y tener un ciclo
+        if(M < N)
+            return 1;
+
+        vector <Nodo*>  heap;
+        for (int i = 1; i <= N; i++)
+            heap.push_back(&nodos[i]);
+
+        Nodo * u = heap[0];
+        u->distancia = 0;
+
+        while (!heap.empty()) {   
+            Nodo * u = heap.front(); pop_heap(heap.begin(), heap.end(), Comp()); 
+            heap.pop_back();
+
+            // Distancia es infinito <==> es no conexo
+            if(u->distancia == numeric_limits<int>::max())
+                return 1;
+
+            // Anoto la arista como parte del AGM
+            if (u->padre != NULL)        {
+                u->arista_en_AGM[u->padre->numero] = 1;
+                u->padre->arista_en_AGM[u->numero] = 1;
+            }
+
+            C+= u->distancia;
+            u->visitado = true;
+
+            for (unsigned int i = 0; i < u->adyacentes.size(); i++) {
+                Nodo * v = u->adyacentes[i].first;
+                if (!v->visitado && v->distancia > u->adyacentes[i].second) {
+                    v->padre = u;
+                    v->distancia = u->adyacentes[i].second;
+                }
+            }
+            make_heap(heap.begin(), heap.end(), Comp());
+        }
+        return 0;
+    }
+
+	void formar_anillo() {
+        sort(aristas.begin(), aristas.end());
+        pair<Nodo*, Nodo*> arista_extra;
+
+        for (unsigned int i = 0; i < aristas.size(); i++) {
+            if(aristas[i].second.first->arista_en_AGM[aristas[i].second.second->numero] == 0) {
+                C += aristas[i].first;
+                arista_extra = aristas[i].second;
+                break;
+            }
+        }
+
+        Nodo * a = arista_extra.first;
+        Nodo * b = arista_extra.second;
+
+        // Formo el anillo llendo desde cada uno de los nodos de la arista extra hacia atras hasta llegar al otro nodo o a NULL
+        for (int i = 0; i < 2; i++) {        
+            while(a != NULL && a != b) {
+                a->en_anillo = true;
+                a = a->padre;
+            }
+            a = arista_extra.second;
+            b = arista_extra.first;
+        }
+
+        anillo.push_back(arista_extra);
+
+        // Separo las aristas del resto de las del anillo
+        for (int i = 1; i <= N; i++) {
+            Nodo* k = &nodos[i];
+            if (k->padre != NULL) {
+                if (k->en_anillo)
+                    anillo.push_back(make_pair(k, k->padre));
+                else
+                    resto.push_back(make_pair(k, k->padre));
+            }
+        }
+    }
+
+};
+
+\end{lstlisting}
+\end{frame}
+

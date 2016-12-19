@@ -1,0 +1,318 @@
+\appendix
+
+\lstset{language=C++,
+	basicstyle=\ttfamily\footnotesize,
+	keywordstyle=\color{blue}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	commentstyle=\color{green}\ttfamily,
+	numbers=left,
+	breaklines=true,
+	tabsize=1,
+	commentstyle=\color{magenta},
+	morecomment=[l][\color{magenta}]{\#}
+}
+
+
+\section{Ejercicio 1} \label{App:AppendixA}
+
+\begin{frame}
+
+\begin{lstlisting}
+void puentes(const std::vector<bool>& tablones, uint16_t c, std::vector<uint16_t>& saltos) {
+	uint16_t j = 0, k = 0, n = tablones.size();
+
+	// caso que puedo saltar todo de una
+	if (c < n){
+		// no puedo saltar todo de una
+		while (j < n){
+			for(k = c; k > 0; k--){
+				if ((j+k-1 < n) && (tablones[j+k-1] != false)){
+					saltos.push_back(j+k);
+					break;
+				}
+			}
+			if (k == 0){ // "No hay solucion";
+				saltos.clear();
+				break;
+			}
+
+			j += k;
+		}
+	}
+	else {
+		saltos.push_back(n);
+	}
+}
+
+\end{lstlisting}
+\end{frame}
+
+\newpage
+\section{Ejercicio 2} \label{App:AppendixB}
+
+\begin{frame}
+
+\begin{lstlisting}
+typedef struct edificio_st {
+	size_t izq;
+	size_t alt;
+	size_t der;
+	edificio_st() : izq(0), alt(0), der(0) {}
+	edificio_st(size_t i, size_t a, size_t d) : izq(i), alt(a), der(d) {}
+} edificio_t;
+
+// Comparacion para el heap.
+struct Comp {
+	bool operator()(const edificio_t& s1, const edificio_t& s2) {
+		return s1.alt <= s2.alt;
+	}
+};
+
+// de menor a mayor con los valores de la izq
+bool orden(const edificio_t& a, const edificio_t& b) {
+	return ((a.izq < b.izq) ||
+			(a.izq == b.izq && a.alt > b.alt) ||
+			(a.izq == b.izq && a.alt == b.alt && a.der < b.der));
+}
+
+// de mayor a menor con los valores de la der
+bool orden2(const edificio_t& a, const edificio_t& b) {
+	return ((a.der > b.der) ||
+			(a.der == b.der && a.alt > b.alt) ||
+			(a.der == b.der && a.alt == b.alt && a.izq > b.izq));
+}
+
+class Horizonte {
+public:
+	Horizonte() : n(0) {
+	}
+
+	void resolver() {
+		flancosAscendentes(piso);
+		flancosDescendentes(piso);
+		sort(solucion.begin(), solucion.end());
+		// Para borrar los repetidos
+		solucion.erase(unique(solucion.begin(), solucion.end()), solucion.end());    
+	}
+
+	void clear() {
+		solucion.clear();
+	}
+
+	size_t size() const {
+		return n;
+	}
+
+	friend ostream & operator<<(ostream &os, Horizonte& h);
+	friend istream & operator>>(istream &is, Horizonte& h);
+
+protected:
+	size_t n;
+	vector<edificio_t> edificios;
+	vector<pair<size_t, size_t> > solucion;
+	edificio_t piso;
+
+	void flancosAscendentes(const edificio_t& piso) {
+		vector<edificio_t> heap;
+
+		make_heap(heap.begin(), heap.end(), Comp()); // Notar que al comienzo heap esta vacio.
+		heap.push_back(piso);
+		push_heap(heap.begin(), heap.end(), Comp());
+
+		sort(edificios.begin(), edificios.end(), orden);
+
+		for (size_t i = 0; i < n; i++) {
+			edificio_t edi = heap.front();
+			while (edificios[i].izq >= edi.der) {
+				pop_heap(heap.begin(), heap.end(), Comp());
+				heap.pop_back();
+				edi = heap.front();
+			}
+
+			if (edi.alt < edificios[i].alt)
+				solucion.push_back(make_pair(edificios[i].izq, edificios[i].alt));
+
+			heap.push_back(edificios[i]);
+			push_heap(heap.begin(), heap.end(), Comp());
+		}
+	}
+
+	void flancosDescendentes(const edificio_t& piso) {
+		vector<edificio_t> heap;
+
+		make_heap(heap.begin(), heap.end(), Comp());
+		heap.push_back(piso);
+		push_heap(heap.begin(), heap.end(), Comp());
+
+		sort(edificios.begin(), edificios.end(), orden2);
+
+		for (size_t i = 0; i < n; i++) {
+			edificio_t edi = heap.front();
+			while (edificios[i].der < edi.izq) {
+				pop_heap(heap.begin(), heap.end(), Comp());
+				heap.pop_back();
+				edi = heap.front();
+			}
+
+			if (edi.alt < edificios[i].alt)
+				solucion.push_back(make_pair(edificios[i].der, edi.alt));
+
+			heap.push_back(edificios[i]);
+			push_heap(heap.begin(), heap.end(), Comp());
+		}
+	}
+};
+\end{lstlisting}
+\end{frame}
+
+\newpage
+\section{Ejercicio 3} \label{App:AppendixC}
+
+\begin{frame}
+
+\begin{lstlisting}
+typedef struct sustancia_st {
+	uint16_t numero;
+	vector<uint16_t> coeficiente;
+	sustancia_st(uint16_t i, uint16_t n) : numero(i)  {
+		coeficiente.resize(n);
+	}
+} sustancia_t;
+
+class Camion {
+public:
+	vector<sustancia_t*> sustanciasTransportadas; // Sustancias transportadas por el camion
+	uint16_t peligrosidad; // Nivel de peligrosidad de las sustancias transportadas
+
+	/// Constructor
+	Camion() : peligrosidad(0) {
+	}
+
+	/// Agrega sust al camion y le sube la peligrosidad
+	void agregarSustancia(sustancia_t * sust) {
+		peligrosidad += calcularPeligrosidad(sust);
+		sustanciasTransportadas.push_back(sust);
+	}
+
+	/// Saca "sust" del camion y baja la peligrosidad. Siempre es la ultima sustancia agregada por el contexto en que la uso.
+	void sacarSustancia(sustancia_t * sust)  {
+		sustanciasTransportadas.pop_back();
+		peligrosidad -= calcularPeligrosidad(sust);
+	}
+
+	/// Chequea si al agregar "sust" al camion no se pasa el umbral de peligrosidad
+	bool noEsPeligroso(const uint16_t &umbral, const sustancia_t * sust) {
+		uint16_t x = calcularPeligrosidad(sust) + peligrosidad;
+		return (x <= umbral);
+	}
+
+private:
+	/// Calcula la peligrosidad de agregar "sust" al camion (no la agrega, solo la calcula)
+	uint16_t calcularPeligrosidad(const sustancia_t * sust) {
+		uint16_t suma = 0;
+		for (auto& st: sustanciasTransportadas)
+			suma += sust->coeficiente[st->numero];
+		return suma;
+	}
+};
+
+class Biohazard {
+public:
+	Biohazard() :
+		n(0), m(0),
+		minimosCamionesUsados(numeric_limits<uint16_t>::max()),
+		usadas(0) {
+	}
+
+	void backtracking() {
+		camiones.resize(n);
+		recursion(0);
+		return;
+	}
+
+	void clear() {
+		camiones.clear();
+		solucion.clear();
+		transportados.clear();
+		usadas = 0;
+	}
+
+	uint16_t size() const {
+		return n;
+	}
+
+	friend ostream & operator<<(ostream &os, Biohazard& b);
+	friend istream & operator>>(istream &is, Biohazard& b);
+
+protected:
+	uint16_t n;
+	uint16_t m;
+	uint16_t minimosCamionesUsados;
+
+	vector<sustancia_t> productos;
+	vector<Camion> camiones;
+	vector<uint16_t> transportados;
+	uint16_t usadas; /// Cantidad de sustancias utilizadas
+	vector<uint16_t> solucion;
+
+	void recursion(const uint16_t &x) {
+		uint16_t contador = contar();
+
+		if (contador < minimosCamionesUsados) {
+
+			if (todosUsados()) {
+				minimosCamionesUsados = contador;
+				solucion = transportados;
+			}
+
+			for (uint16_t i = x; i < n; i++) { // i itera las sustancias
+				if (transportados[i] == 0)   { // Si no esta en ningun camion...
+					sustancia_t * sust = &productos[i];
+					for (uint16_t c = 0; c < n; c++) { // c itera los camiones
+						Camion * truck = &camiones[c];
+						 // Si no supera el umbral de peligrosidad al agregar la sustancia sust al truck...
+						if (truck->noEsPeligroso(m, sust)) 
+							// Agrego sust al camion{
+							truck->agregarSustancia(sust); 
+							usar(sust->numero, c + 1); // Agendo sust como ya transportada
+							recursion(i);
+							// Vuelvo a dejar como si no lo lo hubiese agregado, para probar con la siguiente sustancia
+							desUsar(sust->numero);
+							truck->sacarSustancia(sust);
+						}
+					}
+				}
+			}
+		}
+
+	}
+
+	/// Agenda "sust" como ya transportada por el camion "c"
+	void usar(uint16_t sust, uint16_t c) {
+		transportados[sust] = c;
+		++usadas;
+	}
+
+	/// Agenda "sust" como no transportada por ningun camion
+	void desUsar(uint16_t sust) {
+		transportados[sust] = 0;
+		--usadas;
+	}
+
+	/// Devuelve true <==> estan todas las sustancias en algun camion
+	inline bool todosUsados() {
+		return (usadas == n);
+	}
+
+	/// Para saber cuantos camiones se usaron y tambien sirve para un par de "podas"
+	uint16_t contar() {
+		uint16_t res = 0;
+		for (uint16_t i = 0; i < n; i++)
+			res = max(res, transportados[i]);
+		return res;
+	}
+};
+
+\end{lstlisting}
+\end{frame}
+
